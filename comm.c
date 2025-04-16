@@ -9,6 +9,62 @@ void auto_brake(int devid)
     // Task-1: 
     // Your code here (Use Lab 02 - Lab 04 for reference)
     // Use the directions given in the project document
+
+    if ('Y' == ser_read(devid) && 'Y' == ser_read(devid)) 
+    {
+        uint8_t low_byte = ser_read(devid); //  low byte
+        uint8_t high_byte = ser_read(devid); // high byte
+
+        for(int i = 0; i < 5; i++) ser_read(devid);
+        
+        uint16_t dist = (high_byte << 8) | low_byte; // compute bytes to get dist 
+        printf("Distance: %d cm \n", dist);
+    
+        // set LED mode to OUTPUT
+        gpio_mode(RED_LED,OUTPUT);
+        gpio_mode(GREEN_LED,OUTPUT);
+        gpio_mode(BLUE_LED,OUTPUT);
+
+
+        // if conditions 
+        if (dist > 200) {
+            gpio_write(GREEN_LED, ON);
+            gpio_write(RED_LED, OFF);
+            gpio_write(BLUE_LED, OFF);
+        }
+
+        if( dist <= 200 && dist > 100)
+        {
+            gpio_write(GREEN_LED, ON);
+            gpio_write(RED_LED, ON);
+            gpio_write(BLUE_LED, OFF); 
+        }
+
+        if(dist > 60 && dist <= 100)
+        {
+            gpio_write(GREEN_LED, OFF);
+            gpio_write(RED_LED, ON);
+            gpio_write(BLUE_LED, OFF); 
+        }
+
+        else
+        {
+            int red_status = OFF;
+            uint64_t last_toggle = 0;
+            uint64_t current_cycles = get_cycles(); // retrieves the current cycle
+            uint64_t cycles_100ms = 32768/10; // calculates the hz to convert to ms
+
+            if(current_cycles - last_toggle >= cycles_100ms)
+            {
+                red_status = ON;
+                gpio_write(GREEN_LED, OFF);
+                gpio_write(RED_LED,red_status);
+                gpio_write(BLUE_LED, OFF); 
+                last_toggle = current_cycles;
+            }
+
+        }
+    }
 }
 
 int read_from_pi(int devid)
