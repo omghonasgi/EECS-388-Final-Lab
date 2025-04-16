@@ -13,9 +13,11 @@ void auto_brake(int devid)
 
 int read_from_pi(int devid)
 {
-    // Task-2: 
-    // You code goes here (Use Lab 09 for reference)
-    // After performing Task-2 at dnn.py code, modify this part to read angle values from Raspberry Pi.
+    if(ser_isready(devid)){
+        char angle = ser_read(devid);
+        return(angle);
+    }
+    return 0;
 
 }
 
