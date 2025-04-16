@@ -1,9 +1,9 @@
 #!/usr/bin/env python 
-from __future__ import division
-
 # Imports
 import tensorflow as tf
-model = __import__("model")
+tf.config.threading.set_inter_op_parallelism_threads(4) 
+tf.config.threading.set_intra_op_parallelism_threads(4)
+from model import create_model # Import the model
 import cv2
 import sys
 import os
@@ -12,25 +12,29 @@ import math
 import numpy as np
 import serial
 
-ser1 = serial.Serial("/dev/ttyAMA1", 115200)
+ser2 = serial.Serial('/dev/ttyAMA2', 115200)
 
 # Radian <-> Degree conversion functions
 def deg2rad(deg):
         return deg * math.pi / 180.0
 def rad2deg(rad):
         return 180.0 * rad / math.pi
-
-#Get and set the number of cores to be used by TensorFlow
-if(len(sys.argv) > 1):
-	NCPU = int(sys.argv[1])
+    
+# Get the number of cores to be used by TensorFlow
+if len(sys.argv) > 1:
+    NCPU = int(sys.argv[1])
 else:
-	NCPU = 1
-config = tf.ConfigProto(intra_op_parallelism_threads=NCPU, \
-                        inter_op_parallelism_threads=NCPU, \
-                        allow_soft_placement=True, \
-                        device_count = {'CPU': 1})
+    NCPU = 1
 
-#The max number of frames to be processed, 
+# # Set up the session configuration for multi-threading
+# tf.config.threading.set_inter_op_parallelism_threads(NCPU) 
+# tf.config.threading.set_intra_op_parallelism_threads(NCPU)
+# tf.config.set_soft_device_placement(True)
+
+# Load the model
+model = create_model(input_shape=(66, 200, 3)) 
+model.load_weights("model.h5")  
+
 #    and the number of frames already processed
 NFRAMES = 1000
 curFrame = 0
@@ -38,13 +42,6 @@ curFrame = 0
 #Periodic task options
 period = 50
 is_periodic = True
-
-#Load the model
-sess = tf.InteractiveSession(config=config)
-saver = tf.train.Saver()
-model_load_path = "model/model.ckpt"
-saver.restore(sess, model_load_path)
-
 #Create lists for tracking operation timings
 cap_time_list = []
 prep_time_list = []
@@ -53,50 +50,49 @@ tot_time_list = []
 
 print('---------- Processing video for epoch 1 ----------')
 
-#Open the video file
+# Open the video file
 vid_path = 'epoch-1.avi'
 assert os.path.isfile(vid_path)
 cap = cv2.VideoCapture(vid_path)
 
 #Process the video while recording the operation execution times
-print('performing inference...')
+print('Performing inference...')
 time_start = time.time()
 first_frame = True
 count = 0
+
 while(1):
 	if curFrame < NFRAMES:
 		cam_start = time.time()
-
+		
 		#Get the next video frame
 		ret, img = cap.read()
 		if not ret:
 			break
 
 		prep_start = time.time()
-
+		
 		#Preprocess the input frame
 		img = cv2.resize(img, (200, 66))
-		img = img / 255.
+		img = img / 255.0
+		img = np.expand_dims(img, axis=0)
 
 		pred_start = time.time()
-
+		
 		#Feed the frame to the model and get the control output
-		rad = model.y.eval(feed_dict={model.x: [img]})[0][0]
+		rad = model.predict(img)[0][0]
 		deg = rad2deg(rad)
-        
-        
-        
+
 		# Your code goes here in this if statement
 		# The if condition is used to send every 4th
 		# prediction from the model. This is so that
 		# the HiFive can run the other functions in between
 		if count%4 == 0:
 			degbyte = bytes(deg)
-			ser.write(degbyte)
+			ser2.write(degbyte)
 
-		
-        
-        
+
+
 		pred_end   = time.time()
 
 		#Calculate the timings for each step
@@ -124,7 +120,7 @@ while(1):
 	
 cap.release()
 
-#Calculate and output FPS/frequency
+# Calculate and output FPS/frequency
 fps = curFrame / (time.time() - time_start)
 print('completed inference, total frames: {}, average fps: {} Hz'.format(curFrame+1, round(fps, 1)))
 
