@@ -9,8 +9,53 @@ void auto_brake(int devid)
     // Task-1: 
     // Your code here (Use Lab 02 - Lab 04 for reference)
     // Use the directions given in the project document
-}
 
+    if ('Y' == ser_read(devid) && 'Y' == ser_read(devid)) 
+    {
+        uint8_t low_byte = ser_read(devid); //  low byte
+        uint8_t high_byte = ser_read(devid); // high byte
+
+        for(int i = 0; i < 5; i++) ser_read(devid);
+
+        uint16_t dist = low_byte + (high_byte << 8); // compute bytes to get dist 
+        printf("Distance: %d cm \n", dist);
+    
+        // set LED mode to OUTPUT
+        gpio_mode(RED_LED,OUTPUT);
+        gpio_mode(GREEN_LED,OUTPUT);
+        gpio_mode(BLUE_LED,OUTPUT);
+
+
+        // if conditions 
+        if (dist > 200) {
+            gpio_write(GREEN_LED, ON);
+            gpio_write(RED_LED, OFF);
+            gpio_write(BLUE_LED, OFF);
+        }
+
+        else if( dist <= 200 && dist > 100)
+        {
+            gpio_write(GREEN_LED, ON);
+            gpio_write(RED_LED, ON);
+            gpio_write(BLUE_LED, OFF); 
+        }
+
+        else if(dist > 60 && dist <= 100)
+        {
+            gpio_write(GREEN_LED, OFF);
+            gpio_write(RED_LED, ON);
+            gpio_write(BLUE_LED, OFF); 
+        }
+
+        else if(dist <= 60)
+        {
+            gpio_write(RED_LED, OFF); //turn turn off red led
+            delay(100); // delay time
+            gpio_write(RED_LED, ON); // to turn on red led
+
+        }
+    }
+}
 int read_from_pi(int devid)
 {
     // Task-2: 
